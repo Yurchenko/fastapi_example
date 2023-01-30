@@ -6,7 +6,7 @@ app = FastAPI()
 
 @app.post("/search")
 async def search():
-    # await asyncio.sleep(60)
+    await asyncio.sleep(60)
 
     try:
         with open("response_b.json") as f:

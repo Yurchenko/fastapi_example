@@ -1,11 +1,9 @@
 import asyncio
-import contextvars
 import json
-from datetime import datetime
-from contextvars import ContextVar
+from datetime import datetime, timedelta
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 import aiohttp
 import uuid
 import redis
@@ -32,10 +30,18 @@ async def update_exchange_rate():
     db.set('KZT', '1')
 
 
+async def call_periodic():
+    while True:
+        await update_exchange_rate()
+        now = datetime.now()
+        update_at = datetime(year=now.year, month=now.month, day=now.day, hour=12)
+        if now > update_at:
+            update_at = update_at + timedelta(days=1)
+        await asyncio.sleep((update_at-now).seconds)
+
 @app.on_event("startup")
 async def startup_event():
-    await update_exchange_rate()
-
+    asyncio.create_task(call_periodic())
 
 def handle_request_a(task):
     search_id = task.get_name()
@@ -76,7 +82,10 @@ async def results(search_id: str, currency: str):
         exchange_rate_from = float(db.get(from_currency))
         exchange_rate_to = float(db.get(currency))
         final_price = from_price * exchange_rate_from / exchange_rate_to
-        item['price'] = final_price
+        item['price'] = {
+            "amount": str(final_price),
+            "currenct": currency
+        }
         return item
 
     status_a = db.get(search_id + 'a')
@@ -94,7 +103,7 @@ async def results(search_id: str, currency: str):
         items = a_result + b_result
         result['status'] = COMPLETED
         items = list(map(insert_price, items))
-        items = sorted(items, key=lambda item: item['price'])
+        items = sorted(items, key=lambda item: float(item['price']['amount']))
         result['items'] = items
 
     return result
