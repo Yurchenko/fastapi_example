@@ -1,0 +1,27 @@
+version: "1"
+services:
+  airflow:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    ports:
+      - "9000:80"
+    depends_on:
+      - provider-a
+      - redis
+
+  provider-a:
+    build:
+      context: ./provider-a
+      dockerfile: Dockerfile
+
+  provider-b:
+    build:
+      context: ./provider-b
+      dockerfile: Dockerfile
+
+  redis:
+    image: "redis:alpine"
+    hostname: redis
+    expose:
+      - "6379"
